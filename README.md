@@ -23,7 +23,7 @@ Sonabits adalah aplikasi pemutar musik open-source yang dibuat dengan Flutter da
 
 1.  **Clone repositori ini:**
     ```bash
-    git clone [https://github.com/muhammadzili/sonabits-music-player.git](https://github.com/muhammadzili/sonabits-music-player.git)
+    git clone https://github.com/muhammadzili/sonabits-music-player.git(https://github.com/muhammadzili/sonabits-music-player.git)
     cd sonabits
     ```
 
