@@ -4,8 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/song_provider.dart';
 import 'settings_screen.dart'; 
-import 'about_screen.dart';
-import 'playlists_screen.dart'; // Import halaman baru
+import 'about_screen.dart';   
+import 'offline_music_screen.dart';
+import 'playlists_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -60,7 +61,6 @@ class ProfileScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          // User Info
           Row(
             children: [
               const CircleAvatar(
@@ -80,9 +80,16 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           const Divider(),
-
-          // Menu navigasi
-          // PERBAIKAN: Tambahkan menu Playlist Saya
+          ListTile(
+            leading: const Icon(Icons.download_for_offline_rounded),
+            title: const Text('Musik Offline'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const OfflineMusicScreen()),
+              );
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.queue_music_rounded),
             title: const Text('Playlist Saya'),
@@ -113,8 +120,6 @@ class ProfileScreen extends StatelessWidget {
               );
             },
           ),
-          
-          // Logout Button
           const SizedBox(height: 24),
           FilledButton.tonal(
             onPressed: () => _signOut(context),

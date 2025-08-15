@@ -15,7 +15,6 @@ class SongProvider with ChangeNotifier {
   Duration _totalDuration = Duration.zero;
   Duration _currentPosition = Duration.zero;
 
-  // Getters
   Song? get currentSong => _currentIndex != -1 && _playlist.isNotEmpty ? _playlist[_currentIndex] : null;
   bool get isPlaying => _isPlaying;
   bool get isPlayerMinimized => _isPlayerMinimized;
@@ -43,11 +42,10 @@ class SongProvider with ChangeNotifier {
     });
   }
 
-  // PERBAIKAN: Selalu mulai dengan mini player
   Future<void> playSong(List<Song> newPlaylist, int startIndex) async {
     _playlist = newPlaylist;
     _currentIndex = startIndex;
-    _isPlayerMinimized = true; // Selalu mulai dengan mini player
+    _isPlayerMinimized = true; 
     await _playCurrentSong();
   }
 
@@ -77,7 +75,13 @@ class SongProvider with ChangeNotifier {
     }
     
     await _audioPlayer.stop();
-    await _audioPlayer.play(UrlSource(currentSong!.songUrl));
+
+    // PERBAIKAN: Cek apakah lagu punya path lokal
+    if (currentSong!.localPath != null && currentSong!.localPath!.isNotEmpty) {
+      await _audioPlayer.play(DeviceFileSource(currentSong!.localPath!));
+    } else {
+      await _audioPlayer.play(UrlSource(currentSong!.songUrl));
+    }
     
     await _audioPlayer.setVolume(1.0);
     

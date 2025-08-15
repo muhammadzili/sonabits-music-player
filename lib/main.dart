@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// PERBAIKAN: Import yang hilang ditambahkan
+import 'providers/download_provider.dart'; 
 import 'providers/playlist_provider.dart';
 import 'providers/song_provider.dart';
 import 'screens/auth_screen.dart';
@@ -19,11 +21,11 @@ Future<void> main() async {
   );
 
   runApp(
-    // PERBAIKAN: Gunakan MultiProvider
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (context) => SongProvider()),
         ChangeNotifierProvider(create: (context) => PlaylistProvider()),
+        ChangeNotifierProvider(create: (context) => DownloadProvider()),
       ],
       child: const SonabitsApp(),
     ),

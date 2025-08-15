@@ -1,4 +1,5 @@
 // lib/screens/home_screen.dart
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/song.dart';
 import '../providers/song_provider.dart';
+import 'offline_music_screen.dart'; // Import halaman offline
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,35 +22,36 @@ class _HomeScreenState extends State<HomeScreen> {
   final FocusNode _searchFocusNode = FocusNode();
   bool _isSearching = false;
 
-  Future<List<Song>> _fetchSongs({String query = ''}) async {
-    final client = Supabase.instance.client;
-    PostgrestFilterBuilder<List<Map<String, dynamic>>> queryBuilder;
-
-    if (query.isNotEmpty) {
-      queryBuilder = client.from('songs').select().ilike('title', '%$query%');
-    } else {
-      queryBuilder = client.from('songs').select();
-    }
-    
-    final data = await queryBuilder;
-    final songs = data.map((map) => Song.fromMap(map)).toList();
-    if (query.isEmpty) {
-      songs.shuffle(Random()); // Acak hanya jika tidak sedang mencari
-    }
-    return songs;
-  }
-
   @override
   void initState() {
     super.initState();
     _songsFuture = _fetchSongs();
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _searchFocusNode.dispose();
-    super.dispose();
+  Future<List<Song>> _fetchSongs({String query = ''}) async {
+    try {
+      final client = Supabase.instance.client;
+      PostgrestFilterBuilder<List<Map<String, dynamic>>> queryBuilder;
+
+      if (query.isNotEmpty) {
+        queryBuilder = client.from('songs').select().ilike('title', '%$query%');
+      } else {
+        queryBuilder = client.from('songs').select();
+      }
+      
+      final data = await queryBuilder;
+      final songs = data.map((map) => Song.fromMap(map)).toList();
+      if (query.isEmpty) {
+        songs.shuffle(Random());
+      }
+      return songs;
+    } on SocketException {
+      // Tangkap error spesifik saat tidak ada koneksi internet
+      throw const SocketException("Tidak ada koneksi internet");
+    } catch (e) {
+      // Tangkap error lainnya
+      rethrow;
+    }
   }
 
   void _toggleSearch() {
@@ -59,8 +62,14 @@ class _HomeScreenState extends State<HomeScreen> {
       } else {
         _searchFocusNode.unfocus();
         _searchController.clear();
-        _songsFuture = _fetchSongs(); // Reset list
+        _songsFuture = _fetchSongs();
       }
+    });
+  }
+  
+  void _retryFetch() {
+    setState(() {
+      _songsFuture = _fetchSongs();
     });
   }
 
@@ -93,6 +102,10 @@ class _HomeScreenState extends State<HomeScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+          // PERBAIKAN: Tampilkan UI khusus saat offline
+          if (snapshot.hasError && snapshot.error is SocketException) {
+            return _buildOfflineView(context);
+          }
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
@@ -108,37 +121,84 @@ class _HomeScreenState extends State<HomeScreen> {
              return _buildSongList(allSongs, "Hasil Pencarian", allSongs);
           }
 
-          return ListView(
-            padding: const EdgeInsets.only(bottom: 100),
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  "Top 3 Pilihan Untukmu",
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          return RefreshIndicator(
+            onRefresh: () async => _retryFetch(),
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 100),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    "Top 3 Pilihan Untukmu",
+                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
-              SizedBox(
-                height: 200,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: topSongs.length,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemBuilder: (context, index) {
-                    final song = topSongs[index];
-                    return _TopSongCard(
-                      song: song,
-                      // PERBAIKAN: Kirim playlist Top 3
-                      onTap: () => Provider.of<SongProvider>(context, listen: false).playSong(topSongs, index),
-                    );
-                  },
+                SizedBox(
+                  height: 200,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: topSongs.length,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemBuilder: (context, index) {
+                      final song = topSongs[index];
+                      return _TopSongCard(
+                        song: song,
+                        onTap: () => Provider.of<SongProvider>(context, listen: false).playSong(topSongs, index),
+                      );
+                    },
+                  ),
                 ),
-              ),
-              if (otherSongs.isNotEmpty)
-                _buildSongList(otherSongs, "Lagu Lainnya", otherSongs),
-            ],
+                if (otherSongs.isNotEmpty)
+                  _buildSongList(otherSongs, "Lagu Lainnya", otherSongs),
+              ],
+            ),
           );
         },
+      ),
+    );
+  }
+
+  // PERBAIKAN: Widget baru untuk tampilan offline
+  Widget _buildOfflineView(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 80, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(height: 24),
+            Text(
+              "Koneksi Terputus",
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Anda sedang offline. Putar musik yang sudah diunduh atau coba lagi.",
+              style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                OutlinedButton(
+                  onPressed: _retryFetch,
+                  child: const Text("Coba Lagi"),
+                ),
+                const SizedBox(width: 16),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const OfflineMusicScreen()));
+                  },
+                  child: const Text("Buka Musik Offline"),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -190,7 +250,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // PERBAIKAN: Terima `playlist` untuk dikirim ke provider
   Widget _buildSongList(List<Song> songs, String title, List<Song> playlist) {
     final theme = Theme.of(context);
     return Column(
@@ -226,7 +285,6 @@ class _HomeScreenState extends State<HomeScreen> {
               title: Text(song.title, style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text(song.artist),
               onTap: () {
-                // PERBAIKAN: Kirim playlist dan index yang benar
                 Provider.of<SongProvider>(context, listen: false).playSong(playlist, index);
               },
             );
@@ -245,7 +303,7 @@ class _TopSongCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap, // PERBAIKAN: Gunakan callback dari parent
+      onTap: onTap,
       child: Container(
         width: 150,
         margin: const EdgeInsets.only(right: 16),
