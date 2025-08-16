@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sonabits - Uploader</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212;
+            color: #E0E0E0;
+        }
+        .form-input {
+            background-color: #282828;
+            border: 1px solid #404040;
+            color: #ffffff;
+        }
+        .btn-primary:disabled {
+            background-color: #535353;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-lg p-8 space-y-6 bg-[#181818] rounded-xl shadow-lg border border-gray-800">
+        <h1 class="text-2xl font-bold text-center">Sonabits Uploader</h1>
+        
+        <form id="upload-form" class="space-y-4">
+            <div>
+                <label for="title" class="block text-sm font-medium text-gray-300">Judul Lagu</label>
+                <input type="text" id="title" required class="w-full px-4 py-2 mt-1 rounded-lg form-input">
+            </div>
+            <div>
+                <label for="artist" class="block text-sm font-medium text-gray-300">Nama Artis</label>
+                <input type="text" id="artist" required class="w-full px-4 py-2 mt-1 rounded-lg form-input">
+            </div>
+            <div>
+                <label for="song-file" class="block text-sm font-medium text-gray-300">File Lagu</label>
+                <input type="file" id="song-file" required accept="audio/*" class="w-full text-sm rounded-lg form-input">
+            </div>
+            <div>
+                <label for="cover-art-file" class="block text-sm font-medium text-gray-300">File Cover Art</label>
+                <input type="file" id="cover-art-file" required accept="image/*" class="w-full text-sm rounded-lg form-input">
+            </div>
+            <div>
+                <button type="submit" id="submit-btn" class="w-full px-4 py-2 font-bold text-white rounded-lg bg-green-500 hover:bg-green-400 transition">
+                    Upload Lagu
+                </button>
+            </div>
+        </form>
+        <div id="status-message" class="text-center text-sm"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+        const SUPABASE_SERVICE_KEY = 'YOUR_SERVICE_KEY';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        const form = document.getElementById('upload-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const statusMessage = document.getElementById('status-message');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            setLoading(true, 'Mengunggah...');
+            try {
+                const songFile = form['song-file'].files[0];
+                const coverArtFile = form['cover-art-file'].files[0];
+                
+                // 1. Upload files
+                const songFileName = `${Date.now()}-${songFile.name}`;
+                await supabaseClient.storage.from('songs').upload(songFileName, songFile);
+                
+                const coverArtFileName = `${Date.now()}-${coverArtFile.name}`;
+                await supabaseClient.storage.from('cover_art').upload(coverArtFileName, coverArtFile);
+
+                // 2. Get URLs
+                const songPublicUrl = supabaseClient.storage.from('songs').getPublicUrl(songFileName).data.publicUrl;
+                const coverPublicUrl = supabaseClient.storage.from('cover_art').getPublicUrl(coverArtFileName).data.publicUrl;
+
+                // 3. Insert data to database
+                const { error } = await supabaseClient.from('songs').insert({
+                    title: form.title.value,
+                    artist: form.artist.value,
+                    song_url: songPublicUrl,
+                    cover_art_url: coverPublicUrl,
+                });
+                if (error) throw error;
+
+                showStatus('Lagu berhasil ditambahkan!', 'success');
+                form.reset();
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                setLoading(false, 'Upload Lagu');
+            }
+        });
+
+        function showStatus(message, type = 'info') {
+            statusMessage.textContent = message;
+            statusMessage.className = 'text-center text-sm';
+            switch (type) {
+                case 'success': statusMessage.classList.add('text-green-400'); break;
+                case 'error': statusMessage.classList.add('text-red-400'); break;
+                default: statusMessage.classList.add('text-gray-400');
+            }
+        }
+
+        function setLoading(isLoading, message = 'Upload Lagu') {
+            submitBtn.disabled = isLoading;
+            submitBtn.textContent = isLoading ? 'Loading...' : message;
+        }
+    </script>
+
+</body>
+</html>
