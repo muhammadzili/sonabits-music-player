@@ -16,8 +16,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'https://cakmvqoymdpyvvltzdbn.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNha212cW95bWRweXZ2bHR6ZGJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjU4MTQsImV4cCI6MjA3MDc0MTgxNH0.VQb-QDGmT-CJ8W8lIkdk0BBPY5m-WhO_3VG6tNMlrBU',
+    url: 'YOUR_SUPABASE_URL',
+    anonKey: 'YOUR_ANON_KEY',
   );
 
   runApp(
@@ -85,3 +85,4 @@ class SonabitsApp extends StatelessWidget {
     );
   }
 }
+
