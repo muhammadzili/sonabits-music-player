@@ -1,6 +1,8 @@
 // lib/screens/auth_screen.dart
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -16,6 +18,19 @@ class _AuthScreenState extends State<AuthScreen> {
   final _passwordController = TextEditingController();
   final _usernameController = TextEditingController();
   bool _isLoading = false;
+
+  // FUNGSI BARU: Untuk membuka URL
+  Future<void> _launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      // Gagal membuka URL
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Tidak bisa membuka $url')),
+        );
+      }
+    }
+  }
 
   Future<void> _performAuth() async {
     if (_formKey.currentState!.validate()) {
@@ -82,9 +97,11 @@ class _AuthScreenState extends State<AuthScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Header
-                Icon(
-                  Icons.music_note_rounded,
-                  size: 60,
+                // PERUBAHAN: Ikon diubah menjadi gambar dari assets
+                Image.asset(
+                  'assets/icon/sona.png',
+                  width: 60,
+                  height: 60,
                   color: theme.colorScheme.primary,
                 ),
                 const SizedBox(height: 16),
@@ -154,6 +171,34 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                
+                // PENAMBAHAN: Teks Kebijakan Privasi dan Syarat Ketentuan
+                if (!_isLogin)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                        children: [
+                          const TextSpan(text: 'Dengan mengklik Register, saya menyetujui '),
+                          TextSpan(
+                            text: 'Kebijakan Privasi',
+                            style: TextStyle(color: theme.colorScheme.primary, decoration: TextDecoration.underline),
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () => _launchURL('https://sona.mzili.my.id/kebijakan-privasi'),
+                          ),
+                          const TextSpan(text: ' dan '),
+                          TextSpan(
+                            text: 'Syarat Ketentuan',
+                            style: TextStyle(color: theme.colorScheme.primary, decoration: TextDecoration.underline),
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () => _launchURL('https://sona.mzili.my.id/syarat-ketentuan'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
                 // Tombol Aksi
                 _isLoading

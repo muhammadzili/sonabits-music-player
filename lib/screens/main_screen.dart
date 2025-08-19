@@ -27,63 +27,56 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final songProvider = Provider.of<SongProvider>(context);
     final bool isPlayerVisible = songProvider.currentSong != null;
-    final bool showBottomNav = !isPlayerVisible || songProvider.isPlayerMinimized;
+    final bool isFullPlayerOpen = isPlayerVisible && !songProvider.isPlayerMinimized;
 
     return Scaffold(
       body: Stack(
         children: [
           _screens[_selectedIndex],
           
-          // Player Container with Animation
-          if (isPlayerVisible && !songProvider.isPlayerMinimized)
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 500),
-              transitionBuilder: (child, animation) {
-                final offsetAnimation = Tween<Offset>(
-                  begin: const Offset(0.0, 1.0),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(parent: animation, curve: Curves.easeInOutCubic));
-                return SlideTransition(position: offsetAnimation, child: child);
-              },
-              child: const MusicPlayerScreen(),
-            ),
+          // Player Layar Penuh dengan Animasi
+          if (isFullPlayerOpen)
+            const MusicPlayerScreen(), // Animasi sekarang ditangani di dalam widget player
         ],
       ),
-      // PERBAIKAN: Bottom Navigation & Mini Player
-      bottomNavigationBar: showBottomNav
-          ? SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Mini Player muncul di atas Nav Bar
-                  if (isPlayerVisible && songProvider.isPlayerMinimized)
-                    const MiniPlayer(),
-                  
-                  // Material 3 NavigationBar
-                  NavigationBar(
-                    selectedIndex: _selectedIndex,
-                    onDestinationSelected: (index) {
-                      setState(() {
-                        _selectedIndex = index;
-                      });
-                    },
-                    destinations: const [
-                      NavigationDestination(
-                        icon: Icon(Icons.home_outlined),
-                        selectedIcon: Icon(Icons.home),
-                        label: 'Home',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.person_outline),
-                        selectedIcon: Icon(Icons.person),
-                        label: 'Profile',
-                      ),
-                    ],
+      bottomNavigationBar: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // PERUBAHAN: Mini Player sekarang punya animasi muncul
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              child: isPlayerVisible && songProvider.isPlayerMinimized
+                  ? const MiniPlayer()
+                  : const SizedBox.shrink(),
+            ),
+            
+            // Sembunyikan Navigasi Bar saat player layar penuh aktif
+            if (!isFullPlayerOpen)
+              NavigationBar(
+                selectedIndex: _selectedIndex,
+                onDestinationSelected: (index) {
+                  setState(() {
+                    _selectedIndex = index;
+                  });
+                },
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home),
+                    label: 'Home',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.person_outline),
+                    selectedIcon: Icon(Icons.person),
+                    label: 'Profile',
                   ),
                 ],
               ),
-            )
-          : null, // Sembunyikan semua jika full player aktif
+          ],
+        ),
+      ),
     );
   }
 }

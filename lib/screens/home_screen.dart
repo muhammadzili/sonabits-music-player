@@ -87,7 +87,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 AnimatedOpacity(
                   duration: const Duration(milliseconds: 200),
                   opacity: _isSearching ? 0 : 1,
-                  child: Text("Sonabits", style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                  // PERUBAHAN: Teks diubah menjadi gambar logo
+                  child: Image.asset(
+                    'assets/icon/sona.png',
+                    height: 32, // Sesuaikan tinggi logo
+                  ),
                 ),
                 _buildAnimatedSearchBar(constraints.maxWidth),
               ],
@@ -102,7 +106,6 @@ class _HomeScreenState extends State<HomeScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          // PERBAIKAN: Tampilkan UI khusus saat offline
           if (snapshot.hasError && snapshot.error is SocketException) {
             return _buildOfflineView(context);
           }
@@ -158,7 +161,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // PERBAIKAN: Widget baru untuk tampilan offline
   Widget _buildOfflineView(BuildContext context) {
     final theme = Theme.of(context);
     return Center(

@@ -37,9 +37,15 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.music_note_rounded, color: Theme.of(context).primaryColor, size: 80),
+            // PERUBAHAN: Ikon diubah menjadi gambar logo dan warnanya hijau
+            Image.asset(
+              'assets/icon/sona.png',
+              width: 80,
+              height: 80,
+              color: Theme.of(context).primaryColor, // Warna hijau dari tema
+            ),
             const SizedBox(height: 20),
-            Text(
+            const Text(
               'Sonabits',
               style: TextStyle(
                 fontSize: 32,

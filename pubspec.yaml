@@ -1,7 +1,7 @@
 name: sonabits
 description: A new Flutter project.
 publish_to: 'none' 
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: '>=3.2.3 <4.0.0'
@@ -20,6 +20,7 @@ dependencies:
   google_fonts: ^6.2.1
   marquee: ^2.2.3
   flutter_lyric: ^2.0.4+6
+  url_launcher: ^6.3.0
   
   # Audio
   audioplayers: ^6.0.0
@@ -46,3 +47,5 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/

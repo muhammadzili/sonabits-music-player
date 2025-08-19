@@ -13,10 +13,9 @@ class DownloadProvider with ChangeNotifier {
   List<Song> get downloadedSongs => _downloadedSongs;
 
   DownloadProvider()
-      // PERBAIKAN: Konfigurasi Dio untuk koneksi yang lebih stabil
       : _dio = Dio(BaseOptions(
           connectTimeout: const Duration(seconds: 15),
-          receiveTimeout: const Duration(minutes: 5), // Waktu lebih lama untuk menerima file besar
+          receiveTimeout: const Duration(minutes: 5),
         )) {
     loadDownloadedSongs();
   }
@@ -50,7 +49,6 @@ class DownloadProvider with ChangeNotifier {
     final coverFilePath = '${dir.path}/${song.id}.jpg';
 
     try {
-      // Unduh file lagu
       await _dio.download(
         song.songUrl,
         songFilePath,
@@ -61,7 +59,6 @@ class DownloadProvider with ChangeNotifier {
         },
       );
 
-      // Unduh file gambar
       await _dio.download(song.coverArtUrl, coverFilePath);
       onProgress(1.0);
 
@@ -81,7 +78,6 @@ class DownloadProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error downloading song: $e');
-      // PERBAIKAN: Cek apakah file ada sebelum menghapusnya
       final songFile = File(songFilePath);
       if (await songFile.exists()) {
         await songFile.delete();
@@ -90,8 +86,41 @@ class DownloadProvider with ChangeNotifier {
       if (await coverFile.exists()) {
         await coverFile.delete();
       }
-      // Lempar error agar bisa ditangkap oleh UI
       throw Exception('Gagal mengunduh lagu. Periksa koneksi internet Anda.');
+    }
+  }
+
+  // FUNGSI BARU: Untuk menghapus lagu yang sudah diunduh
+  Future<void> deleteSong(String songId) async {
+    try {
+      // Cari lagu di dalam list
+      final songToDelete = _downloadedSongs.firstWhere((s) => s.id == songId);
+
+      // Hapus file lagu dari penyimpanan
+      if (songToDelete.localPath != null) {
+        final songFile = File(songToDelete.localPath!);
+        if (await songFile.exists()) {
+          await songFile.delete();
+        }
+      }
+
+      // Hapus file gambar dari penyimpanan
+      if (songToDelete.localCoverPath != null) {
+        final coverFile = File(songToDelete.localCoverPath!);
+        if (await coverFile.exists()) {
+          await coverFile.delete();
+        }
+      }
+
+      // Hapus lagu dari list
+      _downloadedSongs.removeWhere((s) => s.id == songId);
+      // Simpan perubahan ke SharedPreferences
+      await _saveDownloadedSongs();
+      // Beri tahu UI untuk update
+      notifyListeners();
+    } catch (e) {
+      print('Error deleting song: $e');
+      // Bisa tambahkan error handling jika diperlukan
     }
   }
 }
