@@ -17,7 +17,7 @@ Future<void> main() async {
 
   await Supabase.initialize(
     url: 'YOUR_SUPABASE_URL',
-    anonKey: 'YOUR_ANON_KEY',
+    anonKey: 'YOUR_SUPABASE_ANON_KEY',
   );
 
   runApp(
@@ -85,4 +85,5 @@ class SonabitsApp extends StatelessWidget {
     );
   }
 }
+
 
