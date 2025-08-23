@@ -3,14 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:audio_service/audio_service.dart';
 
-// PERBAIKAN: Import yang hilang ditambahkan
-import 'providers/download_provider.dart'; 
+import 'providers/download_provider.dart';
 import 'providers/playlist_provider.dart';
 import 'providers/song_provider.dart';
 import 'screens/auth_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/splash_screen.dart';
+import 'services/audio_handler.dart';
+
+late AudioHandler _audioHandler;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,10 +23,25 @@ Future<void> main() async {
     anonKey: 'YOUR_SUPABASE_ANON_KEY',
   );
 
+  _audioHandler = await AudioService.init(
+    builder: () => MyAudioHandler(),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.mzili.sonabits.channel.audio',
+      androidNotificationChannelName: 'Sonabits Music',
+      androidNotificationOngoing: true,
+    ),
+  );
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => SongProvider()),
+        // --- PERBAIKAN: Sediakan AudioHandler ke seluruh aplikasi ---
+        // Ini akan memperbaiki error ProviderNotFoundException.
+        Provider<AudioHandler>(create: (_) => _audioHandler),
+        
+        // Sekarang SongProvider bisa dibuat dengan aman.
+        ChangeNotifierProvider(create: (context) => SongProvider(_audioHandler)),
+        
         ChangeNotifierProvider(create: (context) => PlaylistProvider()),
         ChangeNotifierProvider(create: (context) => DownloadProvider()),
       ],
@@ -85,5 +103,3 @@ class SonabitsApp extends StatelessWidget {
     );
   }
 }
-
-

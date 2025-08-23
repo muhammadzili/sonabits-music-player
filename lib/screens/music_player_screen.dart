@@ -1,5 +1,6 @@
 // lib/screens/music_player_screen.dart
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +11,6 @@ import '../providers/song_provider.dart';
 import '../models/song.dart';
 import 'artist_screen.dart';
 
-// Kelas untuk menampung data lirik yang sudah diparsing
 class LyricLine {
   final Duration timestamp;
   final String text;
@@ -24,22 +24,20 @@ class MusicPlayerScreen extends StatefulWidget {
   State<MusicPlayerScreen> createState() => _MusicPlayerScreenState();
 }
 
-// PERUBAHAN: Tambahkan 'with SingleTickerProviderStateMixin' untuk animasi
 class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTickerProviderStateMixin {
   late Timer _timer;
   int _gradientIndex = 0;
   bool _showLyrics = false;
-
   List<LyricLine> _lyrics = [];
-  int _currentLyricIndex = -1;
   final ScrollController _lyricScrollController = ScrollController();
   bool _isLoadingLyrics = false;
   String? _processedSongId; 
-
-  // PERUBAHAN: Controller dan variabel untuk animasi
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
+  double? _dragValue;
 
+  SongProvider? _songProvider;
+  
   final List<List<Color>> _gradientColors = [
     [Colors.green.shade800, const Color(0xFF121212)],
     [Colors.blue.shade800, const Color(0xFF121212)],
@@ -52,7 +50,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
   void initState() {
     super.initState();
     
-    // PERUBAHAN: Inisialisasi animasi
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
@@ -61,32 +58,33 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
       begin: const Offset(0.0, 1.0),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOutCubic));
-    _animationController.forward(); // Jalankan animasi saat widget dibuat
+    _animationController.forward();
 
     _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      if (mounted) {
-        setState(() {
-          _gradientIndex = (_gradientIndex + 1) % _gradientColors.length;
-        });
-      }
+      if (mounted) setState(() => _gradientIndex = (_gradientIndex + 1) % _gradientColors.length);
     });
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _songProvider = Provider.of<SongProvider>(context, listen: false);
+      _songProvider?.addListener(_onProviderUpdate);
       _processNewSongLyrics();
     });
   }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _processNewSongLyrics();
+  
+  void _onProviderUpdate() {
+    if (mounted) {
+      setState(() {
+        // This empty call is enough to trigger a rebuild with the latest provider data.
+      });
+    }
   }
 
   @override
   void dispose() {
+    _songProvider?.removeListener(_onProviderUpdate);
     _timer.cancel();
     _lyricScrollController.dispose();
-    _animationController.dispose(); // Hapus controller animasi
+    _animationController.dispose();
     super.dispose();
   }
   
@@ -99,13 +97,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
         setState(() {
           _isLoadingLyrics = true;
           _lyrics = []; 
-          _currentLyricIndex = -1;
           _processedSongId = currentSong.id;
         });
       }
-
       final parsedLyrics = _parseLyricsFromString(currentSong.lyrics);
-
       if (mounted) {
         setState(() {
           _lyrics = parsedLyrics;
@@ -114,16 +109,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
       }
     }
   }
-
+  
   List<LyricLine> _parseLyricsFromString(String? lyricsString) {
-    if (lyricsString == null || lyricsString.isEmpty) {
-      return [];
-    }
-
+    if (lyricsString == null || lyricsString.isEmpty) return [];
     final lines = lyricsString.split('\n');
     final List<LyricLine> parsedLyrics = [];
     final RegExp lrcRegex = RegExp(r'\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)');
-
     for (var line in lines) {
       final match = lrcRegex.firstMatch(line);
       if (match != null) {
@@ -137,36 +128,132 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
     return parsedLyrics;
   }
 
-  void _updateLyric(Duration position) {
-    if (_lyrics.isEmpty) return;
+  @override
+  Widget build(BuildContext context) {
+    final songProvider = Provider.of<SongProvider>(context); // listen: true (default)
+    final song = songProvider.currentSong;
+    final theme = Theme.of(context);
 
-    int newIndex = -1;
-    for (int i = 0; i < _lyrics.length; i++) {
-      if (position >= _lyrics[i].timestamp) {
-        newIndex = i;
-      } else {
-        break;
-      }
+    if (song == null) {
+      return SlideTransition(
+        position: _slideAnimation,
+        child: const SizedBox.shrink(),
+      );
     }
+    
+    final hasLyrics = song.lyrics != null && song.lyrics!.isNotEmpty;
+    final position = songProvider.currentPosition;
+    final duration = songProvider.totalDuration;
+    final double maxDuration = duration.inSeconds.toDouble() > 0 ? duration.inSeconds.toDouble() : 1.0;
+    final sliderValue = (_dragValue ?? position.inSeconds.toDouble()).clamp(0.0, maxDuration);
 
-    if (newIndex != _currentLyricIndex) {
-      setState(() {
-        _currentLyricIndex = newIndex;
-      });
-      
-      if (_currentLyricIndex != -1 && _lyricScrollController.hasClients) {
-        final itemHeight = 60.0;
-        final scrollOffset = (_currentLyricIndex * itemHeight);
-
-        _lyricScrollController.animateTo(
-          scrollOffset,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-        );
-      }
-    }
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: AnimatedContainer(
+            duration: const Duration(seconds: 2),
+            curve: Curves.easeInOut,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: _gradientColors[_gradientIndex],
+                stops: const [0.0, 0.6],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 30), onPressed: _minimizePlayer),
+                        const Text("Now Playing", style: TextStyle(fontWeight: FontWeight.bold)),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (hasLyrics)
+                              IconButton(
+                                icon: Icon(_showLyrics ? Icons.image_rounded : Icons.lyrics_rounded),
+                                onPressed: () => setState(() => _showLyrics = !_showLyrics),
+                              ),
+                            IconButton(icon: const Icon(Icons.more_horiz_rounded), onPressed: () => _showMoreOptions(context, song)),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        child: _showLyrics && hasLyrics
+                            ? _buildLyricsView(position)
+                            : _buildCoverView(song, theme),
+                      ),
+                    ),
+                    Column(
+                      children: [
+                        Slider(
+                          value: sliderValue,
+                          max: maxDuration,
+                          onChangeStart: (value) => setState(() => _dragValue = value),
+                          onChanged: (value) => setState(() => _dragValue = value),
+                          onChangeEnd: (value) {
+                            songProvider.seek(Duration(seconds: value.toInt()));
+                            setState(() => _dragValue = null);
+                          },
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(_formatDuration(position)),
+                              Text(_formatDuration(duration)),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              IconButton(icon: const Icon(Icons.skip_previous_rounded), iconSize: 40, onPressed: songProvider.playPrevious),
+                              IconButton(
+                                icon: Icon(songProvider.isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded),
+                                iconSize: 70,
+                                color: theme.colorScheme.primary,
+                                onPressed: songProvider.togglePlayPause,
+                              ),
+                              IconButton(icon: const Icon(Icons.skip_next_rounded), iconSize: 40, onPressed: songProvider.playNext),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
-
+  
+  Future<bool> _onWillPop() async {
+    final songProvider = Provider.of<SongProvider>(context, listen: false);
+    if (!songProvider.isPlayerMinimized) {
+      _minimizePlayer();
+      return false;
+    }
+    return true;
+  }
+  
   String _formatDuration(Duration d) {
     final minutes = d.inMinutes.remainder(60);
     final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -270,131 +357,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
     );
   }
 
-  // PERUBAHAN: Fungsi untuk minimize player dengan animasi
   Future<void> _minimizePlayer() async {
-    await _animationController.reverse(); // Balikkan animasi
+    await _animationController.reverse();
     if (mounted) {
       Provider.of<SongProvider>(context, listen: false).minimizePlayer();
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final songProvider = Provider.of<SongProvider>(context);
-    final song = songProvider.currentSong;
-    final theme = Theme.of(context);
-
-    if (song == null) {
-      // Animasi keluar saat lagu berhenti
-      return SlideTransition(
-        position: _slideAnimation,
-        child: const SizedBox.shrink(),
-      );
-    }
-    
-    _updateLyric(songProvider.currentPosition);
-
-    final hasLyrics = song.lyrics != null && song.lyrics!.isNotEmpty;
-
-    // PERUBAHAN: Bungkus semua dengan SlideTransition
-    return SlideTransition(
-      position: _slideAnimation,
-      child: Scaffold(
-        backgroundColor: Colors.transparent, // Latar belakang transparan
-        body: AnimatedContainer(
-          duration: const Duration(seconds: 2),
-          curve: Curves.easeInOut,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: _gradientColors[_gradientIndex],
-              stops: const [0.0, 0.6],
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 30),
-                        onPressed: _minimizePlayer, // Panggil fungsi minimize
-                      ),
-                      const Text("Now Playing", style: TextStyle(fontWeight: FontWeight.bold)),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (hasLyrics)
-                            IconButton(
-                              icon: Icon(_showLyrics ? Icons.image_rounded : Icons.lyrics_rounded),
-                              onPressed: () {
-                                setState(() {
-                                  _showLyrics = !_showLyrics;
-                                });
-                              },
-                            ),
-                          IconButton(
-                            icon: const Icon(Icons.more_horiz_rounded),
-                            onPressed: () => _showMoreOptions(context, song),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 400),
-                      child: _showLyrics && hasLyrics
-                          ? _buildLyricsView()
-                          : _buildCoverView(song, theme),
-                    ),
-                  ),
-                  Column(
-                    children: [
-                      Slider(
-                        value: songProvider.currentPosition.inSeconds.toDouble().clamp(0.0, songProvider.totalDuration.inSeconds.toDouble()),
-                        max: songProvider.totalDuration.inSeconds.toDouble() > 0 ? songProvider.totalDuration.inSeconds.toDouble() : 1.0,
-                        onChanged: (value) => songProvider.seek(Duration(seconds: value.toInt())),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(_formatDuration(songProvider.currentPosition)),
-                            Text(_formatDuration(songProvider.totalDuration)),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            IconButton(icon: const Icon(Icons.skip_previous_rounded), iconSize: 40, onPressed: () => songProvider.playPrevious()),
-                            IconButton(
-                              icon: Icon(songProvider.isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded),
-                              iconSize: 70,
-                              color: theme.colorScheme.primary,
-                              onPressed: () => songProvider.togglePlayPause(),
-                            ),
-                            IconButton(icon: const Icon(Icons.skip_next_rounded), iconSize: 40, onPressed: () => songProvider.playNext()),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _buildCoverView(Song song, ThemeData theme) {
@@ -430,19 +397,33 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
     );
   }
 
-  Widget _buildLyricsView() {
+  Widget _buildLyricsView(Duration position) {
     if (_isLoadingLyrics) {
-      return const Center(
-        key: ValueKey('lyricsLoading'),
-        child: CircularProgressIndicator(),
-      );
+      return const Center(key: ValueKey('lyricsLoading'), child: CircularProgressIndicator());
     }
-    
     if (_lyrics.isEmpty) {
-       return const Center(
-        key: ValueKey('noLyrics'),
-        child: Text("Lirik tidak tersedia."),
-      );
+       return const Center(key: ValueKey('noLyrics'), child: Text("Lirik tidak tersedia."));
+    }
+
+    int currentLyricIndex = -1;
+    for (int i = 0; i < _lyrics.length; i++) {
+      if (position >= _lyrics[i].timestamp) {
+        currentLyricIndex = i;
+      } else {
+        break;
+      }
+    }
+
+    if (currentLyricIndex != -1 && _lyricScrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if(mounted) {
+          _lyricScrollController.animateTo(
+            (currentLyricIndex * 60.0),
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
     }
 
     return LayoutBuilder(
@@ -456,7 +437,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
           itemCount: _lyrics.length,
           itemBuilder: (context, index) {
             final line = _lyrics[index];
-            final bool isActive = index == _currentLyricIndex;
+            final bool isActive = index == currentLyricIndex;
             return Container(
               height: itemHeight,
               alignment: Alignment.center,
@@ -471,6 +452,36 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
           },
         );
       },
+    );
+  }
+}
+
+class _DebugInfo extends StatelessWidget {
+  final SongProvider songProvider;
+
+  const _DebugInfo({required this.songProvider});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!kDebugMode) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('DEBUG INFO:', style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold, fontSize: 12)),
+          Text('Is Playing: ${songProvider.isPlaying}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+          Text('Position: ${songProvider.currentPosition}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+          Text('Duration: ${songProvider.totalDuration}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+          Text('Cover URL: ${songProvider.currentSong?.coverArtUrl ?? "null"}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+        ],
+      ),
     );
   }
 }

@@ -17,12 +17,10 @@ class AboutScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // PERUBAHAN: Ikon diubah menjadi gambar dari assets
               Image.asset(
                 'assets/icon/sona.png',
                 width: 80,
                 height: 80,
-                // Anda bisa menghapus `color` jika gambar sudah memiliki warna
                 color: theme.colorScheme.primary,
               ),
               const SizedBox(height: 16),
@@ -31,9 +29,9 @@ class AboutScreen extends StatelessWidget {
                 style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              // PERUBAHAN: Versi aplikasi diperbarui
+              // --- PERUBAHAN VERSI APLIKASI ---
               Text(
-                'Versi 1.0.2',
+                'Versi 1.0.3',
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: 40),

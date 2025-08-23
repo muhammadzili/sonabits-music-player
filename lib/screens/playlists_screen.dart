@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/playlist_provider.dart';
-import 'playlist_detail_screen.dart'; // Import halaman baru
+import 'playlist_detail_screen.dart'; // <-- PERBAIKAN: Import ditambahkan
 
 class PlaylistsScreen extends StatelessWidget {
   const PlaylistsScreen({super.key});

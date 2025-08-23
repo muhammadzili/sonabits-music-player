@@ -2,27 +2,43 @@
 class Playlist {
   final String id;
   final String name;
-  final List<String> songIds; // Simpan ID lagu saja
+  final List<String> songIds;
+  // --- PENAMBAHAN FIELD BARU ---
+  final String ownerId;
+  final String ownerUsername;
+  final bool isPublic; // true for public, false for private
 
   Playlist({
     required this.id,
     required this.name,
     required this.songIds,
+    required this.ownerId,
+    required this.ownerUsername,
+    this.isPublic = false, // Default ke private
   });
 
-  Map<String, dynamic> toJson() {
+  // Method untuk mengubah ke Map (untuk Supabase)
+  Map<String, dynamic> toMap() {
     return {
       'id': id,
       'name': name,
-      'songIds': songIds,
+      'song_ids': songIds,
+      'owner_id': ownerId,
+      'owner_username': ownerUsername,
+      'is_public': isPublic,
     };
   }
 
-  factory Playlist.fromJson(Map<String, dynamic> json) {
+  // Factory constructor untuk membuat dari Map (dari Supabase)
+  factory Playlist.fromMap(Map<String, dynamic> map) {
     return Playlist(
-      id: json['id'],
-      name: json['name'],
-      songIds: List<String>.from(json['songIds']),
+      id: map['id'],
+      name: map['name'],
+      // Supabase mengembalikan List<dynamic>, perlu di-cast
+      songIds: List<String>.from(map['song_ids'] ?? []),
+      ownerId: map['owner_id'],
+      ownerUsername: map['owner_username'],
+      isPublic: map['is_public'] ?? false,
     );
   }
 }
