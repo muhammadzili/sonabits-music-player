@@ -1,7 +1,7 @@
 name: sonabits
-description: A new Flutter project.
+description: A Music App
 publish_to: 'none' 
-version: 1.0.2+3
+version: 1.0.4+5
 
 environment:
   sdk: '>=3.2.3 <4.0.0'
@@ -21,7 +21,11 @@ dependencies:
   marquee: ^2.2.3
   flutter_lyric: ^2.0.4+6
   url_launcher: ^6.3.0
-  
+  audio_service: ^0.18.12
+  just_audio: ^0.9.36
+  cached_network_image: ^3.3.1
+  get_it: ^7.7.0 
+
   # Audio
   audioplayers: ^6.0.0
 

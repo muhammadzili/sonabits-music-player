@@ -29,9 +29,8 @@ class AboutScreen extends StatelessWidget {
                 style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              // --- PERUBAHAN VERSI APLIKASI ---
               Text(
-                'Versi 1.0.3',
+                'Versi 1.0.4',
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: 40),

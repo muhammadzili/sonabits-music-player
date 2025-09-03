@@ -31,13 +31,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
   List<LyricLine> _lyrics = [];
   final ScrollController _lyricScrollController = ScrollController();
   bool _isLoadingLyrics = false;
-  String? _processedSongId; 
+  String? _processedSongId;
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
   double? _dragValue;
 
   SongProvider? _songProvider;
-  
+
   final List<List<Color>> _gradientColors = [
     [Colors.green.shade800, const Color(0xFF121212)],
     [Colors.blue.shade800, const Color(0xFF121212)],
@@ -49,7 +49,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
@@ -63,14 +63,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
     _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
       if (mounted) setState(() => _gradientIndex = (_gradientIndex + 1) % _gradientColors.length);
     });
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _songProvider = Provider.of<SongProvider>(context, listen: false);
       _songProvider?.addListener(_onProviderUpdate);
       _processNewSongLyrics();
     });
   }
-  
+
   void _onProviderUpdate() {
     if (mounted) {
       setState(() {
@@ -87,7 +87,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
     _animationController.dispose();
     super.dispose();
   }
-  
+
   void _processNewSongLyrics() {
     final songProvider = Provider.of<SongProvider>(context, listen: false);
     final currentSong = songProvider.currentSong;
@@ -96,7 +96,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
       if (mounted) {
         setState(() {
           _isLoadingLyrics = true;
-          _lyrics = []; 
+          _lyrics = [];
           _processedSongId = currentSong.id;
         });
       }
@@ -109,7 +109,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
       }
     }
   }
-  
+
   List<LyricLine> _parseLyricsFromString(String? lyricsString) {
     if (lyricsString == null || lyricsString.isEmpty) return [];
     final lines = lyricsString.split('\n');
@@ -140,7 +140,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
         child: const SizedBox.shrink(),
       );
     }
-    
+
     final hasLyrics = song.lyrics != null && song.lyrics!.isNotEmpty;
     final position = songProvider.currentPosition;
     final duration = songProvider.totalDuration;
@@ -167,75 +167,78 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 30), onPressed: _minimizePlayer),
-                        const Text("Now Playing", style: TextStyle(fontWeight: FontWeight.bold)),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (hasLyrics)
-                              IconButton(
-                                icon: Icon(_showLyrics ? Icons.image_rounded : Icons.lyrics_rounded),
-                                onPressed: () => setState(() => _showLyrics = !_showLyrics),
-                              ),
-                            IconButton(icon: const Icon(Icons.more_horiz_rounded), onPressed: () => _showMoreOptions(context, song)),
-                          ],
-                        ),
-                      ],
-                    ),
-                    Expanded(
-                      child: AnimatedSwitcher(
+                child: SingleChildScrollView( // Membuat seluruh konten bisa di-scroll
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 30), onPressed: _minimizePlayer),
+                          const Text("Now Playing", style: TextStyle(fontWeight: FontWeight.bold)),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (hasLyrics)
+                                IconButton(
+                                  icon: Icon(_showLyrics ? Icons.image_rounded : Icons.lyrics_rounded),
+                                  onPressed: () => setState(() => _showLyrics = !_showLyrics),
+                                ),
+                              IconButton(icon: const Icon(Icons.more_horiz_rounded), onPressed: () => _showMoreOptions(context, song)),
+                            ],
+                          ),
+                        ],
+                      ),
+                      
+                      // Cover atau Lirik
+                      AnimatedSwitcher(
                         duration: const Duration(milliseconds: 400),
                         child: _showLyrics && hasLyrics
                             ? _buildLyricsView(position)
                             : _buildCoverView(song, theme),
                       ),
-                    ),
-                    Column(
-                      children: [
-                        Slider(
-                          value: sliderValue,
-                          max: maxDuration,
-                          onChangeStart: (value) => setState(() => _dragValue = value),
-                          onChanged: (value) => setState(() => _dragValue = value),
-                          onChangeEnd: (value) {
-                            songProvider.seek(Duration(seconds: value.toInt()));
-                            setState(() => _dragValue = null);
-                          },
+                      
+                      // Kontrol Player
+                      Slider(
+                        value: sliderValue,
+                        max: maxDuration,
+                        onChangeStart: (value) => setState(() => _dragValue = value),
+                        onChanged: (value) => setState(() => _dragValue = value),
+                        onChangeEnd: (value) {
+                          songProvider.seek(Duration(seconds: value.toInt()));
+                          setState(() => _dragValue = null);
+                        },
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(_formatDuration(position)),
+                            Text(_formatDuration(duration)),
+                          ],
                         ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(_formatDuration(position)),
-                              Text(_formatDuration(duration)),
-                            ],
-                          ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            IconButton(icon: const Icon(Icons.skip_previous_rounded), iconSize: 40, onPressed: songProvider.playPrevious),
+                            IconButton(
+                              icon: Icon(songProvider.isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded),
+                              iconSize: 70,
+                              color: theme.colorScheme.primary,
+                              onPressed: songProvider.togglePlayPause,
+                            ),
+                            IconButton(icon: const Icon(Icons.skip_next_rounded), iconSize: 40, onPressed: songProvider.playNext),
+                          ],
                         ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              IconButton(icon: const Icon(Icons.skip_previous_rounded), iconSize: 40, onPressed: songProvider.playPrevious),
-                              IconButton(
-                                icon: Icon(songProvider.isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded),
-                                iconSize: 70,
-                                color: theme.colorScheme.primary,
-                                onPressed: songProvider.togglePlayPause,
-                              ),
-                              IconButton(icon: const Icon(Icons.skip_next_rounded), iconSize: 40, onPressed: songProvider.playNext),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      
+                      // Bagian Credits
+                      if (!_showLyrics) _buildCreditsSection(song),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -244,7 +247,70 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
       ),
     );
   }
-  
+
+  // Widget baru untuk menampilkan bagian credits dengan gaya
+  Widget _buildCreditsSection(Song song) {
+    final credits = song.credits;
+    if (credits == null || credits.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 24.0, bottom: 16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade800.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(16.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 8.0, bottom: 8.0),
+            child: Text(
+              'Credits',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: credits.length,
+            itemBuilder: (context, index) {
+              final creditString = credits[index];
+              String name = '';
+              String role = '';
+
+              final parts = creditString.split('[');
+              if (parts.length == 2) {
+                name = parts[0].trim();
+                role = parts[1].replaceAll(']', '').trim();
+              } else {
+                name = creditString;
+              }
+
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
+                leading: Text(
+                  '${index + 1}',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                title: Text(
+                  name,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  role,
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<bool> _onWillPop() async {
     final songProvider = Provider.of<SongProvider>(context, listen: false);
     if (!songProvider.isPlayerMinimized) {
@@ -253,7 +319,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
     }
     return true;
   }
-  
+
   String _formatDuration(Duration d) {
     final minutes = d.inMinutes.remainder(60);
     final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -365,35 +431,33 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
   }
 
   Widget _buildCoverView(Song song, ThemeData theme) {
-    return SingleChildScrollView(
+    return Column(
       key: const ValueKey('coverView'),
-      child: Column(
-        children: [
-          const SizedBox(height: 24),
-          Hero(
-            tag: 'coverArt_${song.id}',
-            child: AspectRatio(
-              aspectRatio: 1 / 1,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Image.network(song.coverArtUrl, fit: BoxFit.cover),
-              ),
+      children: [
+        const SizedBox(height: 24),
+        Hero(
+          tag: 'coverArt_${song.id}',
+          child: AspectRatio(
+            aspectRatio: 1 / 1,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Image.network(song.coverArtUrl, fit: BoxFit.cover),
             ),
           ),
-          const SizedBox(height: 40),
-          SizedBox(
-            height: 40,
-            child: Marquee(
-              text: song.title,
-              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-              velocity: 40.0,
-              blankSpace: 50.0,
-            ),
+        ),
+        const SizedBox(height: 40),
+        SizedBox(
+          height: 40,
+          child: Marquee(
+            text: song.title,
+            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            velocity: 40.0,
+            blankSpace: 50.0,
           ),
-          const SizedBox(height: 4),
-          Text(song.artist, style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        ],
-      ),
+        ),
+        const SizedBox(height: 4),
+        Text(song.artist, style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+      ],
     );
   }
 
@@ -402,7 +466,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
       return const Center(key: ValueKey('lyricsLoading'), child: CircularProgressIndicator());
     }
     if (_lyrics.isEmpty) {
-       return const Center(key: ValueKey('noLyrics'), child: Text("Lirik tidak tersedia."));
+      return const Center(key: ValueKey('noLyrics'), child: Text("Lirik tidak tersedia."));
     }
 
     int currentLyricIndex = -1;
@@ -416,7 +480,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> with SingleTicker
 
     if (currentLyricIndex != -1 && _lyricScrollController.hasClients) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if(mounted) {
+        if (mounted) {
           _lyricScrollController.animateTo(
             (currentLyricIndex * 60.0),
             duration: const Duration(milliseconds: 400),

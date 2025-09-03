@@ -8,6 +8,7 @@ class Song {
   final String? lyrics;
   final String? localPath;
   final String? localCoverPath; // PERBAIKAN: Path untuk gambar sampul lokal
+  final List<String>? credits; // Tambahkan ini
 
   Song({
     required this.id,
@@ -18,6 +19,7 @@ class Song {
     this.lyrics,
     this.localPath,
     this.localCoverPath,
+    this.credits, // Tambahkan ini
   });
 
   factory Song.fromMap(Map<String, dynamic> map) {
@@ -30,6 +32,7 @@ class Song {
       lyrics: map['lyrics'],
       localPath: map['localPath'],
       localCoverPath: map['localCoverPath'],
+      credits: map['credits'] != null ? List<String>.from(map['credits']) : null,
     );
   }
 
@@ -43,6 +46,7 @@ class Song {
       'lyrics': lyrics,
       'localPath': localPath,
       'localCoverPath': localCoverPath,
+      'credits': credits, 
     };
   }
 }
